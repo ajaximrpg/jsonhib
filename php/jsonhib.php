@@ -181,14 +181,16 @@ class jsonhib {
     * @param $table String A database table.
     * @param $clause String A WHERE clause.
     * @param $n int The place to insert the row before; -1 means the end.
-    * @param $json Array The JSON object.
+    * @param $json mixed A JSON string (string) or JSON array (array).
     *
     * @author Daniel Howard
     */
    function insertRow($table, $clause, $n, $json) {
       $config = $this->config;
 
-      $json = $this->json->decode($json);
+      if (is_string($json)) {
+         $json = $this->json->decode($json);
+      }
 
       // cache the table description
       $desc = $this->json->decode($this->readDesc($table));
@@ -284,7 +286,7 @@ class jsonhib {
             return;
          }
       }
-      
+
       $q = 'DELETE FROM `'.$table.'` '.$clause.' '.$sort_clause.';';
       $qa = array($q);
       // update the positions
@@ -315,14 +317,16 @@ class jsonhib {
     * @param $table String A database table.
     * @param $clause String A WHERE clause.
     * @param $n mixed The row to update (int) or JSON data to select the row (string).
-    * @param $json Array The JSON values to update.
+    * @param $json mixed A JSON string (string) or JSON array (array).
     *
     * @author Daniel Howard
     */
    function updateRow($table, $clause, $n, $json) {
       $config = $this->config;
 
-      $json = $this->json->decode($json);
+      if (is_string($json)) {
+         $json = $this->json->decode($json);
+      }
 
       // cache the table description
       $desc = $this->json->decode($this->readDesc($table));
