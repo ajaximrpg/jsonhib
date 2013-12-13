@@ -99,13 +99,14 @@ class jsonhib {
                $key = 'clazz';
             }
             if ($key == $json_field) {
-               // already added non-SQL JSON data
+               // add non-SQL JSON data later
             } elseif ($key == $config['sort_column']) {
                // sort column isn't user data
             } elseif (is_numeric($value) && (strval(intval($value)) == $value)) {
                $obj[$key] = intval($value);
             } else {
-               $obj[$key] = $value;
+               $val = $this->json->decode($value);
+               $obj[$key] = is_array($val)? $val: $value;
             }
          }
          // add non-SQL JSON data
@@ -236,7 +237,7 @@ class jsonhib {
          if ($set_clause != '') {
             $set_clause .= ', ';
          }
-         $val = trim($this->json->encode($value), '"');
+         $val = is_array($value)? $this->json->encode($value): $value;
          $set_clause .= $this->mysql_real_escape_string($col).'=\''.$this->mysql_real_escape_string($val).'\'';
       }
       $q = 'INSERT INTO `'.$table.'` SET '.$set_clause.';';
@@ -361,7 +362,7 @@ class jsonhib {
             if ($set_clause != '') {
                $set_clause .= ', ';
             }
-            $val = trim($this->json->encode($value), '"');
+            $val = is_array($value)? $this->json->encode($value): $value;
             $set_clause .= $this->mysql_real_escape_string($col).'=\''.$this->mysql_real_escape_string($val).'\'';
             unset($json[$col]);
          }
