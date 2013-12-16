@@ -82,7 +82,7 @@ class jsonhib {
       $config = $this->config;
 
       // cache the table description
-      $desc = $this->json->decode($this->readDesc($table));
+      $this->readDesc($table); $desc = $this->cache[$table]['desc_a'];
       $sort_field = isset($this->cache[$table]['sort_column'])? $this->cache[$table]['sort_column']: '';
       $json_field = isset($this->cache[$table]['json_column'])? $this->cache[$table]['json_column']: '';
       $sort_clause = ($sort_field != '')? 'ORDER BY `'.$sort_field.'` ASC': '';
@@ -102,8 +102,14 @@ class jsonhib {
                // add non-SQL JSON data later
             } elseif ($key == $config['sort_column']) {
                // sort column isn't user data
-            } elseif (is_numeric($value) && (strval(intval($value)) == $value)) {
+            } elseif ($value === null) {
+               $obj[$key] = null;
+            } elseif (is_numeric($value) && (strval(intval($value)) == $value) && is_bool($desc[$key])) {
+               $obj[$key] = (intval($value) === 1);
+            } elseif (is_numeric($value) && (strval(intval($value)) == $value) && is_int($desc[$key])) {
                $obj[$key] = intval($value);
+            } elseif (is_numeric($value) && is_float($desc[$key])) {
+               $obj[$key] = floatval($value);
             } else {
                $val = $this->json->decode($value);
                $obj[$key] = is_array($val)? $val: $value;
@@ -112,9 +118,7 @@ class jsonhib {
          // add non-SQL JSON data
          if ($json_field != '') {
             foreach ($this->json->decode($row[$json_field]) as $key => $value) {
-               if (!isset($obj[$key])) {
-                  $obj[$key] = $value;
-               }
+               $obj[$key] = $value;
             }
          }
          $objs[] = $obj;
@@ -151,16 +155,23 @@ class jsonhib {
                $sort_column = $field;
             } elseif ($field === $config['json_column']) {
                $json_column = $field;
-            } elseif (strpos($rowdesc['Type'], 'int') === false) {
-               $desc[$field] = '';
-            } else {
+            } elseif (strpos($rowdesc['Type'], 'tinyint(1)') !== false) {
+               $desc[$field] = false;
+            } elseif (strpos($rowdesc['Type'], 'int') !== false) {
                $desc[$field] = 0;
+            } elseif (strpos($rowdesc['Type'], 'float') !== false) {
+               $desc[$field] = floatval(0);
+            } elseif (strpos($rowdesc['Type'], 'double') !== false) {
+               $desc[$field] = floatval(0);
+            } else {
+               $desc[$field] = '';
             }
          }
          // cache the description
          if (!isset($this->cache[$table])) {
             $this->cache[$table] = array();
          }
+         $this->cache[$table]['desc_a'] = $desc;
          $desc = $this->json->encode($desc);
          $this->cache[$table]['desc'] = $desc;
          if ($sort_column != '') {
@@ -194,16 +205,28 @@ class jsonhib {
       }
 
       // cache the table description
-      $desc = $this->json->decode($this->readDesc($table));
+      $this->readDesc($table); $desc = $this->cache[$table]['desc_a'];
       $sort_field = isset($this->cache[$table]['sort_column'])? $this->cache[$table]['sort_column']: '';
       $json_field = isset($this->cache[$table]['json_column'])? $this->cache[$table]['json_column']: '';
       $sort_clause = ($sort_field != '')? 'ORDER BY `'.$sort_field.'` DESC': '';
 
       // overwrite default values with user values
       foreach ($desc as $col => $value) {
-         if (isset($json[$col])) {
-            $desc[$col] = $json[$col];
-            unset($json[$col]);
+         if (array_key_exists($col, $json)) {
+            $compat = false;
+            if (gettype($desc[$col]) === gettype($json[$col])) {
+               $compat = true;
+            }
+            if (is_float($desc[$col]) && is_int($json[$col])) {
+               $compat = true;
+            }
+            if (is_string($desc[$col])) {
+               $compat = true;
+            }
+            if ($compat) {
+               $desc[$col] = $json[$col];
+               unset($json[$col]);
+            }
          }
       }
       // update the positions
@@ -238,7 +261,9 @@ class jsonhib {
             $set_clause .= ', ';
          }
          $val = is_array($value)? $this->json->encode($value): $value;
-         $set_clause .= $this->mysql_real_escape_string($col).'=\''.$this->mysql_real_escape_string($val).'\'';
+         $val = is_bool($val)? ($val? '1': '0'): $val;
+         $val = is_null($val)? 'NULL': '\''.$this->mysql_real_escape_string($val).'\'';
+         $set_clause .= $this->mysql_real_escape_string($col).'='.$val;
       }
       $q = 'INSERT INTO `'.$table.'` SET '.$set_clause.';';
       $qa[] = $q;
@@ -262,7 +287,7 @@ class jsonhib {
       $config = $this->config;
 
       // cache the table description
-      $desc = $this->json->decode($this->readDesc($table));
+      $this->readDesc($table); $desc = $this->cache[$table]['desc_a'];
       $sort_field = isset($this->cache[$table]['sort_column'])? $this->cache[$table]['sort_column']: '';
       $json_field = isset($this->cache[$table]['json_column'])? $this->cache[$table]['json_column']: '';
 
@@ -330,7 +355,7 @@ class jsonhib {
       }
 
       // cache the table description
-      $desc = $this->json->decode($this->readDesc($table));
+      $this->readDesc($table); $desc = $this->cache[$table]['desc_a'];
       $sort_field = isset($this->cache[$table]['sort_column'])? $this->cache[$table]['sort_column']: '';
       $json_field = isset($this->cache[$table]['json_column'])? $this->cache[$table]['json_column']: '';
 
@@ -355,32 +380,54 @@ class jsonhib {
          }
       }
 
+      // get the freeform JSON data
+      $json_data = array();
+      if ($json_field != '') {
+         $q = 'SELECT '.$json_field.' FROM `'.$table.'` '.$clause.' '.$sort_clause.';';
+         $qr_getjson = $this->mysql_query($q);
+         if ($qr_getjson && ($row = mysql_fetch_assoc($qr_getjson))) {
+            $json_data = $this->json->decode($row[$json_field]);
+         }
+      }
       // make the SET clause
       $set_clause = '';
       foreach ($json as $col => $value) {
-         if (isset($desc[$col])) {
+         $compat = false;
+         if (array_key_exists($col, $desc)) {
+            if (gettype($desc[$col]) === gettype($json[$col])) {
+               $compat = true;
+            }
+            if (is_float($desc[$col]) && is_int($json[$col])) {
+               $compat = true;
+            }
+            if (is_string($desc[$col])) {
+               $compat = true;
+            }
+         }
+         if ($compat) {
+            // update the SQL data
             if ($set_clause != '') {
                $set_clause .= ', ';
             }
             $val = is_array($value)? $this->json->encode($value): $value;
-            $set_clause .= $this->mysql_real_escape_string($col).'=\''.$this->mysql_real_escape_string($val).'\'';
-            unset($json[$col]);
+            $val = is_bool($val)? ($val? '1': '0'): $val;
+            $val = is_null($val)? 'NULL': '\''.$this->mysql_real_escape_string($val).'\'';
+            $set_clause .= $this->mysql_real_escape_string($col).'='.$val;
+            // delete it from the freeform JSON data
+            if (array_key_exists($col, $json_data)) {
+               unset($json_data[$col]);
+            }
+         } else {
+            // add it to the freeform JSON data
+            $json_data[$col] = $value;
          }
       }
       // update the freeform JSON data
-      if (($json_field != '') && (count($json) > 0)) {
-         $q = 'SELECT '.$json_field.' FROM `'.$table.'` '.$clause.' '.$sort_clause.';';
-         $qr_getjson = $this->mysql_query($q);
-         if ($qr_getjson && ($row = mysql_fetch_assoc($qr_getjson))) {
-            $obj = $this->json->decode($row[$json_field]);
-            // modify the freeform data
-            $obj = array_merge($obj, $json);
-            // write the freeform JSON data
-            if ($set_clause != '') {
-               $set_clause .= ', ';
-            }
-            $set_clause .= $json_field.'=\''.$this->mysql_real_escape_string($this->json->encode($obj)).'\'';
+      if ($json_field != '') {
+         if ($set_clause != '') {
+            $set_clause .= ', ';
          }
+         $set_clause .= $json_field.'=\''.$this->mysql_real_escape_string($this->json->encode($json_data)).'\'';
       }
       $q = 'UPDATE `'.$table.'` SET '.$set_clause.' '.$clause.' '.$sort_clause.';';
       $qr_update = $this->mysql_query($q);
@@ -406,7 +453,7 @@ class jsonhib {
       }
 
       // cache the table description
-      $desc = $this->json->decode($this->readDesc($table));
+      $this->readDesc($table); $desc = $this->cache[$table]['desc_a'];
       $sort_field = isset($this->cache[$table]['sort_column'])? $this->cache[$table]['sort_column']: '';
       $sort_clause = ($sort_field != '')? 'ORDER BY `'.$sort_field.'`': '';
 
