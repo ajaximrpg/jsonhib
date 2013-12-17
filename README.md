@@ -8,7 +8,7 @@ Here's a simple jsonhib object:
 ```
 // create a jsonhib object
 var jh = new jsonhib({
-   'link_identifier': $link,
+   'link_identifier': conn,
    'sort_column': 'n', // array index column name
    'json_column': 'json' // freeform JSON column name
 });
