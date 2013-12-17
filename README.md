@@ -3,7 +3,7 @@ jsonhib
 
 A way to read/write JSON in a MySQL database.  jsonhib is available for both Node.js and PHP.
 
-Here's a simple jsonhib object:
+Here's a simple jsonhib object (in Node.js):
 
 ```
 // create a jsonhib object
