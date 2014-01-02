@@ -296,9 +296,11 @@ class jsonhib {
          $sort_clause = (($clause == '')? 'WHERE ': 'AND ').$sort_field.'='.$n;
       } else {
          $sort_clause = '';
-         foreach ($this->json->decode($n) as $col => $value) {
-            $sort_clause .= (($sort_clause == '') && ($clause == ''))? 'WHERE ': ' AND ';
-            $sort_clause .= $col.'=\''.$value.'\'';
+         if (is_string($n)) {
+            foreach ($this->json->decode($n) as $col => $value) {
+               $sort_clause .= (($sort_clause == '') && ($clause == ''))? 'WHERE ': ' AND ';
+               $sort_clause .= $col.'=\''.$value.'\'';
+            }
          }
          $field = ($sort_field != '')? $sort_field: '*';
          $q = 'SELECT '.$field.' FROM `'.$table.'` '.$clause.' '.$sort_clause.';';
@@ -364,9 +366,11 @@ class jsonhib {
          $sort_clause = (($clause == '')? 'WHERE ': 'AND ').$sort_field.'='.$n;
       } else {
          $sort_clause = '';
-         foreach ($this->json->decode($n) as $col => $value) {
-            $sort_clause .= (($sort_clause == '') && ($clause == ''))? 'WHERE ': ' AND ';
-            $sort_clause .= $col.'=\''.$value.'\'';
+         if (is_string($n)) {
+            foreach ($this->json->decode($n) as $col => $value) {
+               $sort_clause .= (($sort_clause == '') && ($clause == ''))? 'WHERE ': ' AND ';
+               $sort_clause .= $col.'=\''.$value.'\'';
+            }
          }
          $q = 'SELECT * FROM `'.$table.'` '.$clause.' '.$sort_clause.';';
          $qr = $this->mysql_query($q);
