@@ -346,11 +346,13 @@
             func2();
          } else {
             sort_clause = '';
-            var nn = JSON.parse(n);
-            for (var col in nn) {
-               var value = nn[col];
-               sort_clause += ((sort_clause == '') && (clause == ''))? 'WHERE ': ' AND ';
-               sort_clause += col+'=\''+value+'\'';
+            if (is_string(n)) {
+               var nn = JSON.parse(n);
+               for (var col in nn) {
+                  var value = nn[col];
+                  sort_clause += ((sort_clause == '') && (clause == ''))? 'WHERE ': ' AND ';
+                  sort_clause += col+'=\''+value+'\'';
+               }
             }
             q = 'SELECT * FROM `'+table+'` '+clause+' '+sort_clause+';';
             that.mysql_query(q, function(e, rows, f) {
@@ -464,11 +466,13 @@
             func2();
          } else {
             sort_clause = '';
-            var nn = JSON.parse(n);
-            for (var col in nn) {
-               var value = nn[col];
-               sort_clause += ((sort_clause == '') && (clause == ''))? 'WHERE ': ' AND ';
-               sort_clause += col+'=\''+value+'\'';
+            if (is_string(n)) {
+               var nn = JSON.parse(n);
+               for (var col in nn) {
+                  var value = nn[col];
+                  sort_clause += ((sort_clause == '') && (clause == ''))? 'WHERE ': ' AND ';
+                  sort_clause += col+'=\''+value+'\'';
+               }
             }
             var q = 'SELECT * FROM `'+table+'` '+clause+' '+sort_clause+';';
             that.mysql_query(q, function(e, rows, f) {
